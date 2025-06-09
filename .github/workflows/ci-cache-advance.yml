@@ -23,7 +23,7 @@ jobs:
       - name: Get node_modules cache
         uses: actions/cache@v4
         id: node_modules
-        continue-on-error: true
+        continue-on-error: false
         with:
           path: |
             **/node_modules
