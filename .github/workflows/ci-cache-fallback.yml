@@ -1,10 +1,10 @@
-name: CI cache advance
+name: CI cache with fallback
 
 on: workflow_dispatch
 
 jobs:
   ci:
-    name: Running CI
+    name: Running CI with fallback caching
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,13 +20,13 @@ jobs:
         run: |
           echo "version=$(node -v)" >> $GITHUB_OUTPUT
 
-      - name: Get node_modules cache
+      - name: Cache node_modules with fallback
+        id: cache-nodemodules
         uses: actions/cache@v4
-        id: node_modules
         continue-on-error: true
         with:
           path: |
-            **/node_modules
+            node_modules
             ~/.cache/yarn
           key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}-${{ steps.node.outputs.version }}
           restore-keys: |
@@ -34,6 +34,19 @@ jobs:
             ${{ runner.os }}-node_modules-
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ "${{ steps.cache-nodemodules.outputs.cache-hit }}" != "true" ]; then
+            echo "Cache miss or failed, installing dependencies..."
+            yarn install --frozen-lockfile --prefer-offline
+          else
+            echo "Cache hit, dependencies restored from cache"
+          fi
+
+      - name: Verify installation
+        run: |
+          if [ ! -d "node_modules" ]; then
+            echo "node_modules not found, running yarn install as fallback"
+            yarn install --frozen-lockfile
+          fi
 
       ### - run: yarn test
